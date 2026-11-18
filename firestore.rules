@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // UID in the path is the authority. Group members never receive access.
+    function owner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function date(value) { return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function amount(value) { return value is int && value > 0 && value <= 100000000; }
+    function category(value) { return value in ['Housing','Utilities','Entertainment','Health & fitness','Education','Other']; }
+    function group(uid,id) { return id is string && (id == '' || exists(/databases/$(database)/documents/users/$(uid)/groups/$(id))); }
+    function payer(uid, data) {
+      return !('paidBy' in data) || data.paidBy == '' ||
+        (data.groupId != '' && data.paidBy is string && data.paidBy in get(/databases/$(database)/documents/users/$(uid)/groups/$(data.groupId)).data.members);
+    }
+    match /users/{uid} {
+      allow read: if owner(uid);
+      allow create, update: if owner(uid)
+        && request.resource.data.keys().hasOnly(['name','reminders','reminderDays','dark'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 40
+        && request.resource.data.reminders is bool && request.resource.data.dark is bool
+        && request.resource.data.reminderDays in [1,2,3,7,14];
+      match /groups/{id} {
+        allow read: if owner(uid);
+        allow delete: if owner(uid);
+        allow create, update: if owner(uid)
+          && request.resource.data.keys().hasOnly(['id','name','members','deadline','createdAt'])
+          && request.resource.data.id == id
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+          && request.resource.data.members is list && request.resource.data.members.size() >= 2 && request.resource.data.members.size() <= 20
+          && request.resource.data.members[0] == 'You'
+          && (!('deadline' in request.resource.data) || date(request.resource.data.deadline))
+          && (!('createdAt' in request.resource.data) || date(request.resource.data.createdAt));
+      }
+      match /bills/{id} {
+        allow read: if owner(uid);
+        allow delete: if owner(uid) && resource.data.archived == true;
+        allow create, update: if owner(uid)
+          && request.resource.data.keys().hasOnly(['id','name','amountCents','startDate','repeat','category','groupId','archived','paidBy'])
+          && request.resource.data.id == id
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+          && amount(request.resource.data.amountCents) && date(request.resource.data.startDate)
+          && request.resource.data.startDate >= '2000-01-01' && request.resource.data.startDate <= '2100-12-31'
+          && request.resource.data.repeat in ['Once','Monthly','Yearly']
+          && category(request.resource.data.category) && group(uid,request.resource.data.groupId)
+          && request.resource.data.archived is bool && payer(uid, request.resource.data);
+      }
+      match /invoices/{id} {
+        allow read: if owner(uid);
+        // Detaching a deleted group preserves the amount, date and payment status.
+        allow update: if owner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['groupId','paidBy'])
+          && request.resource.data.groupId == '' && request.resource.data.paidBy == '';
+        allow delete: if owner(uid) && (resource.data.paid == false || get(/databases/$(database)/documents/users/$(uid)/bills/$(resource.data.billId)).data.archived == true);
+        // Paid snapshots retain their details; unpaid records follow bill edits.
+        allow create: if owner(uid)
+          && request.resource.data.keys().hasOnly(['id','billId','name','amountCents','dueDate','category','groupId','paid','paidBy'])
+          && request.resource.data.id == id
+          && request.resource.data.billId is string
+          && exists(/databases/$(database)/documents/users/$(uid)/bills/$(request.resource.data.billId))
+          && id == request.resource.data.billId + '_' + request.resource.data.dueDate
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+          && amount(request.resource.data.amountCents) && date(request.resource.data.dueDate)
+          && category(request.resource.data.category) && group(uid,request.resource.data.groupId)
+          && request.resource.data.paid is bool && payer(uid, request.resource.data);
+        allow update: if owner(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid','paidBy']) && request.resource.data.paid is bool && payer(uid, request.resource.data);
+        allow update: if owner(uid) && resource.data.paid == false
+          && request.resource.data.paid == false
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','amountCents','dueDate','category','groupId','paidBy'])
+          && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+          && amount(request.resource.data.amountCents) && date(request.resource.data.dueDate)
+          && category(request.resource.data.category) && group(uid,request.resource.data.groupId)
+          && payer(uid, request.resource.data);
+      }
+    }
+    // Unmatched paths remain denied by default.
+  }
+}
