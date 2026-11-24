@@ -477,13 +477,14 @@ footer > span:first-child {
   padding: 27px 28px;
   overflow: hidden;
 }
-.total-card:after {
-  content: "↗";
+.total-card-decoration {
   position: absolute;
   right: 10px;
   top: -30px;
-  font-size: 200px;
-  color: #ffffff07;
+  width: 200px;
+  height: 200px;
+  color: #fff;
+  opacity: 0.03;
   pointer-events: none;
 }
 .total-top {

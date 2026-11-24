@@ -450,6 +450,11 @@ export default function App() {
                 <>
                   <div className="home-top">
                     <section className="total-card">
+                      <ArrowUpRight
+                        className="total-card-decoration"
+                        size={200}
+                        aria-hidden="true"
+                      />
                       <div className="total-top">
                         <span>Your month at a glance</span>
                         <span>EUR · {monthLabel(month).split(" ")[0]}</span>
