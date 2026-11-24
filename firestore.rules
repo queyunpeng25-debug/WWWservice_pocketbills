@@ -20,13 +20,14 @@ service cloud.firestore {
         && request.resource.data.reminderDays in [1,2,3,7,14];
       match /groups/{id} {
         allow read: if owner(uid);
-        allow delete: if owner(uid);
+        allow delete: if owner(uid) && resource.data.archived == true;
         allow create, update: if owner(uid)
-          && request.resource.data.keys().hasOnly(['id','name','members','deadline','createdAt'])
+          && request.resource.data.keys().hasOnly(['id','name','members','deadline','createdAt','archived'])
           && request.resource.data.id == id
           && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
           && request.resource.data.members is list && request.resource.data.members.size() >= 2 && request.resource.data.members.size() <= 20
           && request.resource.data.members[0] == 'You'
+          && (!('archived' in request.resource.data) || request.resource.data.archived is bool)
           && (!('deadline' in request.resource.data) || date(request.resource.data.deadline))
           && (!('createdAt' in request.resource.data) || date(request.resource.data.createdAt));
       }

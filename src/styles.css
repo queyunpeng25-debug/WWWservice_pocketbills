@@ -1877,8 +1877,22 @@ html[data-theme="dark"] .bill-icon {
   gap: 24px;
 }
 .shared-grid .group-card {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   padding: 28px;
+}
+.group-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+.group-card-footer > :last-child {
+  margin-left: auto;
 }
 .shared-grid .group-card-top h2 {
   margin: 0;

@@ -677,8 +677,20 @@ export default function App() {
                     )
                   }
                   onEdit={(record) => setModal({ type: "group", record })}
+                  onArchive={(group) =>
+                    action(
+                      () =>
+                        write("groups", {
+                          ...group,
+                          archived: !group.archived,
+                        }),
+                      group.archived
+                        ? "Group restored"
+                        : "Group archived; bills and payment history retained",
+                    )
+                  }
                   onDelete={(group) => {
-                    if (busy) return;
+                    if (busy || !group.archived) return;
                     action(async () => {
                       if (demo) {
                         const current = dataRef.current;

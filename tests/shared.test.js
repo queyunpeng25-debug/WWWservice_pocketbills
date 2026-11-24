@@ -122,3 +122,18 @@ test("legacy missing payers block misleading transfers", () => {
     [],
   );
 });
+
+test("archiving and restoring a group retain invoice membership and settlement", () => {
+  const invoice = { ...occurrence(bill, "2026-03"), paid: true };
+  const expected = sharedInvoices(group, [bill], [invoice]);
+  for (const archived of [true, false]) {
+    const rows = sharedInvoices({ ...group, archived }, [bill], [invoice]);
+    assert.deepEqual(rows, expected);
+    assert.equal(rows[0].groupId, group.id);
+    assert.equal(rows[0].paidBy, "You");
+    assert.deepEqual(
+      settlement(group.members, rows),
+      settlement(group.members, expected),
+    );
+  }
+});

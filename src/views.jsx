@@ -160,12 +160,28 @@ export function Groups({
   onView,
   onAssign,
   onDelete,
+  onArchive,
   busy,
 }) {
+  const [filter, setFilter] = useState("Active");
+  const visible = groups.filter((g) =>
+    filter === "Archived" ? g.archived : !g.archived,
+  );
   return (
     <>
+      <div className="tabs">
+        {["Active", "Archived"].map((f) => (
+          <button
+            key={f}
+            className={filter === f ? "active" : ""}
+            onClick={() => setFilter(f)}
+          >
+            {f === "Active" ? "Active groups" : f}
+          </button>
+        ))}
+      </div>
       <div className="shared-grid">
-        {groups.map((g) => {
+        {visible.map((g) => {
           const rows = sharedInvoices(g, bills, invoices);
           const result = settlement(g.members, rows);
           const shares = result.participants.map((p) => p.share);
@@ -182,15 +198,17 @@ export function Groups({
                   >
                     <Pencil size={17} />
                   </button>
-                  <button
-                    className="icon-button group-delete"
-                    aria-label={`Delete ${g.name}`}
-                    title="Delete group; keep bills as personal bills"
-                    disabled={busy}
-                    onClick={() => onDelete(g)}
-                  >
-                    <X size={18} />
-                  </button>
+                  {g.archived && (
+                    <button
+                      className="icon-button group-delete"
+                      aria-label={`Delete ${g.name}`}
+                      title="Delete group; keep bills as personal bills"
+                      disabled={busy}
+                      onClick={() => onDelete(g)}
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
                 </div>
               </div>
               <p className="muted">
@@ -313,19 +331,37 @@ export function Groups({
                 {g.deadline || "your deadline"}. Any extra cents are assigned in
                 member order.
               </p>
-              <button className="text-button" onClick={() => onView(g.id)}>
-                View group bills
-                <ArrowRight size={15} />
-              </button>
+              <div className="group-card-footer">
+                <button className="text-button" onClick={() => onView(g.id)}>
+                  View group bills
+                  <ArrowRight size={15} />
+                </button>
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => onArchive(g)}
+                >
+                  <Archive size={14} />
+                  {g.archived ? "Restore" : "Archive"}
+                </button>
+              </div>
             </article>
           );
         })}
       </div>
-      {!groups.length && (
+      {!visible.length && (
         <div className="panel empty">
           <Users />
-          <h2>A place for shared costs.</h2>
-          <p>Create a group, add your friends and set a settle-up deadline.</p>
+          <h2>
+            {filter === "Archived"
+              ? "No archived groups yet."
+              : "A place for shared costs."}
+          </h2>
+          <p>
+            {filter === "Archived"
+              ? "Archived groups keep their bills and payment history."
+              : "Create a group, add your friends and set a settle-up deadline."}
+          </p>
         </div>
       )}
     </>

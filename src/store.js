@@ -6,6 +6,7 @@ import {
   setDoc,
   runTransaction,
   getDocs,
+  getDoc,
   query,
   where,
   writeBatch,
@@ -77,6 +78,10 @@ export async function saveBill(uid, bill) {
 export const saveSettings = (uid, settings) =>
   setDoc(doc(db, "users", uid), settings);
 export async function deleteGroup(uid, groupId) {
+  const group = await getDoc(doc(db, "users", uid, "groups", groupId));
+  if (!group.exists() || group.data().archived !== true) {
+    throw new Error("Archive the group before deleting it.");
+  }
   // Detach rules first so newly generated invoices no longer reference the group.
   for (const kind of ["bills", "invoices"]) {
     const records = await getDocs(

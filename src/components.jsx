@@ -183,7 +183,7 @@ export function InvoiceList({ rows, groups = [], onPay, busy }) {
               </span>
               <div>
                 <strong>{i.name}</strong>
-                {i.groupId && (
+                {i.groupId ? (
                   <span className="invoice-group">
                     <span
                       className="invoice-group-dot"
@@ -196,6 +196,15 @@ export function InvoiceList({ rows, groups = [], onPay, busy }) {
                         ? ` · ${i.paid ? "Paid by" : "Payer:"} ${i.paidBy}`
                         : " · Payer not set"}
                     </span>
+                  </span>
+                ) : (
+                  <span className="invoice-group">
+                    <span
+                      className="invoice-group-dot"
+                      style={{ backgroundColor: "var(--muted)" }}
+                      aria-hidden="true"
+                    />
+                    Personal
                   </span>
                 )}
               </div>

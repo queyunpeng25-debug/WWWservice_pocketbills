@@ -53,6 +53,34 @@ try {
   const data = sampleData(),
     month = today().slice(0, 7),
     noop = () => {};
+  const groupArchivePreview = renderToStaticMarkup(
+    React.createElement(Groups, {
+      groups: [
+        { id: "active", name: "Active household", members: ["You", "Alex"] },
+        {
+          id: "archived",
+          name: "Archived household",
+          members: ["You", "Alex"],
+          archived: true,
+        },
+      ],
+      bills: [],
+      invoices: [],
+      onArchive: noop,
+      onDelete: noop,
+      onEdit: noop,
+      onView: noop,
+      onAssign: noop,
+    }),
+  );
+  assert.match(groupArchivePreview, /Active household/);
+  assert.doesNotMatch(groupArchivePreview, /Archived household/);
+  assert.match(groupArchivePreview, />Archive<\/button>/);
+  assert.doesNotMatch(
+    groupArchivePreview,
+    /aria-label="Delete Active household"/,
+  );
+  await check("group archive controls", groupArchivePreview);
   const sharedRow = {
     id: "shared-preview",
     name: "Internet",
@@ -79,10 +107,11 @@ try {
   const paidPreview = preview({ ...sharedRow, paid: true });
   assert.match(paidPreview, /Paid by Alex/);
   assert.doesNotMatch(paidPreview, /Estimated split/);
-  assert.doesNotMatch(
-    preview({ ...sharedRow, groupId: "" }),
-    /invoice-group|Personal/,
-  );
+  const personalPreview = preview({ ...sharedRow, groupId: "" });
+  assert.match(personalPreview, /invoice-group/);
+  assert.match(personalPreview, /Personal/);
+  assert.doesNotMatch(personalPreview, /Payer:|Paid by|Payer not set|each/);
+  await check("personal invoice details", personalPreview);
   assert.match(preview(sharedRow, []), /Unknown group/);
   await check("shared invoice details", unpaidPreview);
   const cases = [
