@@ -65,6 +65,7 @@ npx firebase-tools deploy --project YOUR_PROJECT_ID --only "hosting,firestore:ru
 - 应用打开时的逾期和即将到期提醒，支持 1/2/3/7/14 天。
 - 仅本人可见的群组和成员姓名记录。
 - 响应式布局、键盘操作、原生对话框、错误反馈、空状态、主题偏好。
+- 从照片、PDF 或邮件导入账单（第一期，完全在浏览器本地运行）：识别结果只预填「Add a new bill」表单，由用户检查后保存；低置信度字段高亮，非 EUR 金额要求手动换算；若与已有账单相似，可直接标记当期已付或更新金额，避免重复账单。
 
 金额以整数分保存，当前统一使用 EUR；日期采用本地 `YYYY-MM-DD`。31 日账单在短月份取最后一天，下一月份恢复原始日。闰年 2 月 29 日的年付账单在平年使用 2 月 28 日。
 
@@ -74,7 +75,9 @@ npx firebase-tools deploy --project YOUR_PROJECT_ID --only "hosting,firestore:ru
 
 打开应用会补齐账单起始月至本月的发票，并生成下月发票供跨月提醒；浏览其他月份也会生成该月发票。已有发票保存独立快照。编辑账单只影响尚未生成的月份，不覆盖既有发票的金额、名称或到期日。界面和 FAQ 中明确说明此行为。
 
-归档停止生成新发票，并隐藏尚未付款的今天/未来发票；历史逾期和已付款记录保留。恢复后按原规则继续记账。网站不转账、不接入银行卡，不具备邮件自动提醒和文档提取功能。
+归档停止生成新发票，并隐藏尚未付款的今天/未来发票；历史逾期和已付款记录保留。恢复后按原规则继续记账。网站不转账、不接入银行卡，不具备邮件自动提醒。
+
+账单导入入口：侧栏/My bills 的 **Scan a bill**、新建弹窗顶部的导入区、在任意页面拖入文件或粘贴截图/邮件文本。图片用 Tesseract.js 识别（首次使用会从 jsDelivr CDN 下载 OCR 引擎和英文模型，账单文件本身不会上传），PDF 读取文本层（扫描版 PDF 需改为拍照），邮件支持粘贴文本或 `.eml` 文件。提取是启发式的，所以结果一律需要用户确认；保存仍经过 `validateBill` 和 Firestore Rules。
 
 ## 6. 文件结构
 
@@ -85,10 +88,13 @@ src/
   components.jsx   日历、发票列表、账单与群组表单
   views.jsx        账单管理、群组、设置与帮助
   domain.js        日期、重复规则、金额和业务验证
+  importer.js      账单导入：金额/日期/邮件解析、草稿规范化、重复匹配（纯函数）
+  extract.js       本地提取：OCR、PDF 文本层、邮件，按需懒加载
   firebase.js      Firebase 初始化
   store.js         Firestore / 演示数据存储
   styles.css       带注释的主题与响应式样式
 tests/domain.test.js
+tests/importer.test.js
 scripts/validate.mjs
 firestore.rules
 firebase.json

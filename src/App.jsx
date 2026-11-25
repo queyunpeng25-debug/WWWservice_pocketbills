@@ -16,6 +16,7 @@ import {
   Sun,
   Moon,
   CircleHelp,
+  ScanLine,
 } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, configured } from "./firebase";
@@ -52,7 +53,10 @@ import {
   Calendar,
   BillForm,
   GroupForm,
+  ImportPanel,
+  MatchBanner,
 } from "./components";
+import { matchExisting, findAmounts } from "./importer";
 import { Bills, Groups, Preferences, Help } from "./views";
 
 const pages = {
@@ -78,7 +82,8 @@ export default function App() {
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
-    [groupFilter, setGroupFilter] = useState("All");
+    [groupFilter, setGroupFilter] = useState("All"),
+    [dragging, setDragging] = useState(false);
   const dataRef = useRef(data);
   dataRef.current = data;
   const pendingInvoices = useRef(new Set());
@@ -201,22 +206,111 @@ export default function App() {
       invoice.paid ? "Payment reopened" : "Payment marked as paid",
     );
   }
-  function newBill() {
+  const blankBill = () => ({
+    id: crypto.randomUUID(),
+    name: "",
+    amountCents: 0,
+    startDate: selectedDay || today(),
+    repeat: "Monthly",
+    category: "Utilities",
+    groupId: "",
+    archived: false,
+  });
+  /** `options.pending` is a file or text to import; `scan` focuses the import step. */
+  function newBill(options = {}) {
     setModal({
       type: "bill",
-      record: {
-        id: crypto.randomUUID(),
-        name: "",
-        amountCents: 0,
-        startDate: selectedDay || today(),
-        repeat: "Monthly",
-        category: "Utilities",
-        groupId: "",
-        archived: false,
-      },
+      record: blankBill(),
       isNew: true,
+      scan: !!options.scan || !!options.pending,
+      pending: options.pending,
     });
   }
+  // Imports pre-fill the ordinary form; saving still goes through validateBill + rules.
+  function applyImport(result) {
+    setModal((m) =>
+      m?.type === "bill" && m.isNew
+        ? {
+            ...m,
+            record: { ...m.record, ...result.draft },
+            imported: { ...result, nonce: crypto.randomUUID() },
+            match: matchExisting(result.draft, dataRef.current.bills),
+          }
+        : m,
+    );
+  }
+  function clearImport() {
+    setModal((m) =>
+      m?.type === "bill" && m.isNew
+        ? {
+            ...m,
+            record: { ...blankBill(), id: m.record.id },
+            imported: null,
+            match: null,
+          }
+        : m,
+    );
+  }
+  /** Files dropped or pasted anywhere open (or feed) the import step. */
+  function routeImport(input) {
+    if (!loaded) return false;
+    const pending = { input, nonce: crypto.randomUUID() };
+    if (!modal) newBill({ pending });
+    else if (modal.type === "bill" && modal.isNew && !modal.imported)
+      setModal((m) => ({ ...m, pending }));
+    else return false;
+    return true;
+  }
+  const routeRef = useRef(routeImport);
+  routeRef.current = routeImport;
+  useEffect(() => {
+    const hasFiles = (e) =>
+      [...(e.dataTransfer?.types || [])].includes("Files");
+    let depth = 0;
+    const enter = (e) => {
+      if (!hasFiles(e)) return;
+      depth++;
+      setDragging(true);
+    };
+    const leave = (e) => {
+      if (!hasFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) setDragging(false);
+    };
+    const over = (e) => hasFiles(e) && e.preventDefault();
+    const drop = (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault(); // never navigate away to the dropped file
+      depth = 0;
+      setDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) routeRef.current(file);
+    };
+    const paste = (e) => {
+      const file = [...(e.clipboardData?.files || [])][0];
+      const editing = e.target.closest?.(
+        "input, textarea, select, [contenteditable]",
+      );
+      if (file && routeRef.current(file)) return e.preventDefault();
+      if (editing) return;
+      // Only treat pasted text as a bill when it contains a currency amount.
+      const text = e.clipboardData?.getData("text") || "";
+      if (findAmounts(text).length && routeRef.current(text))
+        e.preventDefault();
+    };
+    window.addEventListener("dragenter", enter);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("dragover", over);
+    window.addEventListener("drop", drop);
+    window.addEventListener("paste", paste);
+    return () => {
+      window.removeEventListener("dragenter", enter);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("dragover", over);
+      window.removeEventListener("drop", drop);
+      window.removeEventListener("paste", paste);
+    };
+  }, []);
   const rows = invoicesForMonth(data.bills, data.invoices, month),
     visible = rows.filter(
       (i) =>
@@ -296,9 +390,16 @@ export default function App() {
               </button>
             ))}
         </nav>
-        <button className="primary side-add" onClick={newBill}>
+        <button className="primary side-add" onClick={() => newBill()}>
           <Plus size={19} />
           New bill
+        </button>
+        <button
+          className="secondary side-scan"
+          onClick={() => newBill({ scan: true })}
+        >
+          <ScanLine size={18} />
+          Scan a bill
         </button>
         <div className="side-bottom">
           <div className="little-note">
@@ -405,10 +506,19 @@ export default function App() {
             <div className="heading-actions">
               {["home", "calendar"].includes(page) && monthControl}
               {page === "bills" && (
-                <button className="primary" onClick={newBill}>
-                  <Plus size={17} />
-                  New bill
-                </button>
+                <div className="button-pair">
+                  <button
+                    className="secondary"
+                    onClick={() => newBill({ scan: true })}
+                  >
+                    <ScanLine size={17} />
+                    Scan a bill
+                  </button>
+                  <button className="primary" onClick={() => newBill()}>
+                    <Plus size={17} />
+                    New bill
+                  </button>
+                </div>
               )}
               {page === "groups" && (
                 <button
@@ -616,7 +726,7 @@ export default function App() {
                           Show whole month
                         </button>
                       )}
-                      <button className="secondary" onClick={newBill}>
+                      <button className="secondary" onClick={() => newBill()}>
                         <Plus size={16} />
                         Add bill
                       </button>
@@ -636,7 +746,7 @@ export default function App() {
                   groups={data.groups}
                   initialGroup={groupFilter}
                   busy={busy}
-                  onNew={newBill}
+                  onNew={() => newBill()}
                   onEdit={(record) => setModal({ type: "bill", record })}
                   onDelete={(bill) => {
                     if (busy || !bill.archived) return;
@@ -763,6 +873,12 @@ export default function App() {
             </button>
           ))}
       </nav>
+      {dragging && !modal && loaded && (
+        <div className="drop-overlay" aria-hidden="true">
+          <ScanLine size={34} />
+          Drop to import a bill
+        </div>
+      )}
       {message && (
         <div className="toast" role="status">
           <Check size={17} />
@@ -771,10 +887,65 @@ export default function App() {
       )}
       {modal?.type === "bill" && (
         <Modal
-          title={modal.isNew ? "Add a new bill" : "Edit bill"}
+          title={
+            modal.imported
+              ? "Review imported bill"
+              : modal.isNew
+                ? "Add a new bill"
+                : "Edit bill"
+          }
           onClose={() => !busy && setModal(null)}
         >
+          {modal.isNew && (
+            <ImportPanel
+              pending={modal.pending}
+              result={modal.imported}
+              dragging={dragging}
+              autoFocus={modal.scan}
+              onResult={applyImport}
+              onClear={clearImport}
+            />
+          )}
+          {modal.match &&
+            (() => {
+              const bill = modal.match,
+                month = modal.record.startDate.slice(0, 7);
+              const invoice =
+                data.invoices.find(
+                  (i) => i.billId === bill.id && i.dueDate.startsWith(month),
+                ) ||
+                data.invoices.find(
+                  (i) =>
+                    i.billId === bill.id &&
+                    i.dueDate.startsWith(today().slice(0, 7)),
+                );
+              return (
+                <MatchBanner
+                  bill={bill}
+                  invoice={invoice}
+                  draft={modal.record}
+                  busy={busy}
+                  onPaid={async () => {
+                    await togglePaid(invoice);
+                    setModal(null);
+                  }}
+                  onUpdate={() =>
+                    setModal({
+                      type: "bill",
+                      record: {
+                        ...bill,
+                        amountCents: modal.record.amountCents,
+                      },
+                    })
+                  }
+                  onDismiss={() => setModal((m) => ({ ...m, match: null }))}
+                />
+              );
+            })()}
           <BillForm
+            key={modal.imported?.nonce || modal.record.id}
+            imported={modal.imported}
+            autoFocusName={!modal.scan}
             record={modal.record}
             groups={data.groups}
             busy={busy}

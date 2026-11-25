@@ -1,0 +1,21 @@
+Return-Path: <noreply@electricireland.ie>
+From: "Electric Ireland" <noreply@electricireland.ie>
+To: alex@example.com
+Subject: Your electricity bill is ready
+Date: Thu, 12 Nov 2026 09:14:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="==b0undary=="
+
+--==b0undary==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: base64
+
+PGh0bWw+PGJvZHk+PHRhYmxlPjx0cj48dGQ+PGgxPkVsZWN0cmljIElyZWxhbmQ8L2gxPjwvdGQ+
+PC90cj4KPHRyPjx0ZD5IaSBBbGV4LCB5b3VyIGJpbGwgZm9yIE5vdmVtYmVyIGlzIHJlYWR5Ljwv
+dGQ+PC90cj4KPHRyPjx0ZD5TdGFuZGluZyBjaGFyZ2U8L3RkPjx0ZD4mZXVybzsxMiw0MDwvdGQ+
+PC90cj4KPHRyPjx0ZD5Vc2FnZSAzMTIga1doPC90ZD48dGQ+JmV1cm87NzAsMDA8L3RkPjwvdHI+
+Cjx0cj48dGQ+PGI+QW1vdW50IGR1ZTwvYj48L3RkPjx0ZD48Yj4mZXVybzs4Miw0MDwvYj48L3Rk
+PjwvdHI+Cjx0cj48dGQ+UGF5bWVudCBkdWUgMDMvMTIvMjAyNjwvdGQ+PC90cj48L3RhYmxlPjwv
+Ym9keT48L2h0bWw+
+
+--==b0undary==--

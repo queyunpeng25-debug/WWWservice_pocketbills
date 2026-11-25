@@ -1,0 +1,21 @@
+From: Netflix <info@account.netflix.com>
+Subject: =?UTF-8?B?WW91ciBOZXRmbGl4IHJlY2VpcHQg4oCTIERlY2VtYmVy?=
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="nf"
+
+--nf
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Hi Alex,
+
+Thanks for being a member.
+Plan: Standard with ads
+Total: =E2=82=AC13.99 per month
+Next billing date: December 10, 2026
+
+--nf
+Content-Type: text/html; charset=utf-8
+
+<p>ignored html part</p>
+--nf--

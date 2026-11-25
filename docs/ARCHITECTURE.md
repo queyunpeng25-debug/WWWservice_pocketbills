@@ -45,7 +45,9 @@ Group members are a bounded array of reference names (up to 20 including the own
 
 ## Scope and future work
 
-This course-sized service supports EUR, monthly/yearly recurrence, manual bill entry, owner-only groups, and in-app reminders. Email reminders, OCR extraction, shared-account collaboration, bank payments, per-member settlement, and multi-currency conversion are not implemented.
+This course-sized service supports EUR, monthly/yearly recurrence, manual bill entry, owner-only groups, and in-app reminders. Bill import (phase 1) reads photos (Tesseract.js OCR), PDF text layers (pdf.js) and pasted or `.eml` emails entirely in the browser. `src/importer.js` turns the text into a draft with per-field confidence; the draft only pre-fills the normal bill form, so the existing validation, Rules and invoice semantics are unchanged. A draft resembling an active bill offers to mark that bill's invoice as paid or update its amount instead of creating a duplicate. Server-side AI extraction and an email-forwarding inbox are planned later phases.
+
+Email reminders, shared-account collaboration, bank payments, per-member settlement, and multi-currency conversion are not implemented.
 
 The current listener strategy loads a user's collections and is suitable for a modest personal coursework dataset. A larger service should paginate historical invoices, generate occurrences on a backend schedule, add automated Rules Emulator coverage, and rate-limit background generation. No server process runs while the app is closed.
 

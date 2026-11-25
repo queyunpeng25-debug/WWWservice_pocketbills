@@ -11,7 +11,18 @@ import {
   GraduationCap,
   Receipt,
   ArrowUpRight,
+  ScanLine,
+  FileText,
+  Mail,
+  Camera,
+  Upload,
+  ClipboardPaste,
+  Sparkles,
+  LoaderCircle,
+  Repeat,
 } from "lucide-react";
+import { extractBill, kindOf, ACCEPT } from "./extract.js";
+import { CHECK_BELOW } from "./importer.js";
 import {
   today,
   money,
@@ -319,8 +330,52 @@ export function Calendar({ month, rows, selected, onSelect, compact = false }) {
   );
 }
 /** Native form constraints complement domain validation and Firestore rules. */
-export function BillForm({ record, groups, onSave, busy }) {
+export function BillForm({
+  record,
+  groups,
+  onSave,
+  busy,
+  imported = null,
+  autoFocusName = true,
+}) {
   const [error, setError] = useState("");
+  // Imported fields stay highlighted until the user edits them.
+  const [touched, setTouched] = useState(() => new Set());
+  const touch = (field) =>
+    setTouched((t) => (t.has(field) ? t : new Set(t).add(field)));
+  const flag = (field) => {
+    if (!imported || touched.has(field)) return { className: undefined };
+    const warning = imported.warnings.find((w) => w.field === field);
+    const low = (imported.confidence[field] ?? 0) < CHECK_BELOW;
+    if (warning || low)
+      return {
+        className: "needs-check",
+        // Low confidence alone shows the badge; specific problems get a note.
+        note: warning?.text,
+        id: warning ? `check-${field}` : undefined,
+      };
+    return { className: "auto-filled" };
+  };
+  const mark = (f) =>
+    f.className === "auto-filled" ? (
+      <span className="field-mark" title="Filled in automatically">
+        <Sparkles size={13} aria-hidden="true" />
+        <span className="sr-only">(filled in automatically)</span>
+      </span>
+    ) : f.className === "needs-check" ? (
+      <span className="field-mark check">Check</span>
+    ) : null;
+  const note = (f) =>
+    f.note && (
+      <small className="field-note" id={f.id}>
+        {f.note}
+      </small>
+    );
+  const fName = flag("name"),
+    fAmount = flag("amount"),
+    fDate = flag("date"),
+    fRepeat = flag("repeat"),
+    fCategory = flag("category");
   const [groupId, setGroupId] = useState(record.groupId || "");
   const group = groups.find((g) => g.id === groupId);
   return (
@@ -349,10 +404,12 @@ export function BillForm({ record, groups, onSave, busy }) {
         }
       }}
     >
-      <label>
-        Bill name
+      <label className={fName.className}>
+        <span className="label-row">Bill name {mark(fName)}</span>
         <input
-          autoFocus
+          autoFocus={autoFocusName}
+          onInput={() => touch("name")}
+          aria-describedby={fName.id}
           type="text"
           name="name"
           required
@@ -360,11 +417,14 @@ export function BillForm({ record, groups, onSave, busy }) {
           defaultValue={record.name}
           placeholder="e.g. House rent"
         />
+        {note(fName)}
       </label>
       <div className="form-grid">
-        <label>
-          Amount (€)
+        <label className={fAmount.className}>
+          <span className="label-row">Amount (€) {mark(fAmount)}</span>
           <input
+            onInput={() => touch("amount")}
+            aria-describedby={fAmount.id}
             name="amount"
             type="number"
             min="0.01"
@@ -374,10 +434,13 @@ export function BillForm({ record, groups, onSave, busy }) {
             defaultValue={record.amountCents ? record.amountCents / 100 : ""}
             placeholder="0.00"
           />
+          {note(fAmount)}
         </label>
-        <label>
-          First due date
+        <label className={fDate.className}>
+          <span className="label-row">First due date {mark(fDate)}</span>
           <input
+            onInput={() => touch("date")}
+            aria-describedby={fDate.id}
             name="date"
             type="date"
             required
@@ -385,22 +448,35 @@ export function BillForm({ record, groups, onSave, busy }) {
             max="2100-12-31"
             defaultValue={record.startDate}
           />
+          {note(fDate)}
         </label>
-        <label>
-          Repeats
-          <select name="repeat" defaultValue={record.repeat}>
+        <label className={fRepeat.className}>
+          <span className="label-row">Repeats {mark(fRepeat)}</span>
+          <select
+            name="repeat"
+            defaultValue={record.repeat}
+            onChange={() => touch("repeat")}
+            aria-describedby={fRepeat.id}
+          >
             <option value="Once">One-time</option>
             <option>Monthly</option>
             <option>Yearly</option>
           </select>
+          {note(fRepeat)}
         </label>
-        <label>
-          Category
-          <select name="category" defaultValue={record.category}>
+        <label className={fCategory.className}>
+          <span className="label-row">Category {mark(fCategory)}</span>
+          <select
+            name="category"
+            defaultValue={record.category}
+            onChange={() => touch("category")}
+            aria-describedby={fCategory.id}
+          >
             {categories.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
+          {note(fCategory)}
         </label>
       </div>
       <label>
@@ -587,5 +663,275 @@ export function GroupForm({
         <Check size={17} />
       </button>
     </form>
+  );
+}
+
+const sourceIcons = { image: Camera, pdf: FileText, email: Mail };
+/**
+ * Optional first step of "Add a new bill": read a photo, PDF or email on this
+ * device and hand a draft to the form. `pending` carries files dropped or
+ * pasted anywhere in the app.
+ */
+export function ImportPanel({
+  pending,
+  result,
+  dragging,
+  autoFocus,
+  onResult,
+  onClear,
+}) {
+  const [state, setState] = useState({ status: "idle" });
+  const [pasting, setPasting] = useState(false);
+  const fileRef = useRef(null),
+    cameraRef = useRef(null),
+    run = useRef(0);
+  async function read(input) {
+    const token = ++run.current;
+    setPasting(false);
+    setState({
+      status: "reading",
+      progress: 0,
+      kind: typeof input === "string" ? "email" : kindOf(input),
+    });
+    try {
+      const next = await extractBill(input, {
+        onProgress: (progress) =>
+          run.current === token && setState((s) => ({ ...s, progress })),
+      });
+      if (run.current !== token) return;
+      setState({ status: "idle" });
+      onResult(next);
+    } catch (err) {
+      if (run.current === token)
+        setState({
+          status: "error",
+          message: err.message || "We couldn’t read this bill.",
+        });
+    }
+  }
+  useEffect(() => {
+    if (pending?.input) read(pending.input);
+  }, [pending?.nonce]);
+  const preview = result?.source.preview;
+  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
+  const pick = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) read(file);
+  };
+  const inputs = (
+    <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept={ACCEPT}
+        className="file-input"
+        onChange={pick}
+        aria-label="Choose a bill file"
+      />
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="file-input"
+        onChange={pick}
+        aria-label="Take a photo of a bill"
+      />
+    </>
+  );
+  if (state.status === "reading")
+    return (
+      <div className="import-zone reading" role="status" aria-live="polite">
+        <LoaderCircle className="spin" size={22} aria-hidden="true" />
+        <div>
+          <strong>Reading your bill…</strong>
+          <small>
+            {state.kind === "image"
+              ? `Recognising text on this device${state.progress ? ` · ${state.progress}%` : ""}`
+              : "Looking for the amount, due date and company"}
+          </small>
+        </div>
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => {
+            run.current++;
+            setState({ status: "idle" });
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  if (result) {
+    const Icon = sourceIcons[result.source.kind] || FileText;
+    return (
+      <div className="import-summary">
+        {preview ? (
+          <a
+            href={preview}
+            target="_blank"
+            rel="noreferrer"
+            className="import-thumb"
+          >
+            <img src={preview} alt="Imported bill" />
+          </a>
+        ) : (
+          <span className="import-thumb">
+            <Icon size={22} aria-hidden="true" />
+          </span>
+        )}
+        <div>
+          <strong>
+            <Sparkles size={14} aria-hidden="true" /> Filled in from{" "}
+            {result.source.label}
+          </strong>
+          <small>
+            Read on this device. Check the highlighted fields before saving.
+          </small>
+        </div>
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => {
+            setState({ status: "idle" });
+            onClear();
+          }}
+        >
+          Start over
+        </button>
+      </div>
+    );
+  }
+  if (pasting)
+    return (
+      <form
+        className="import-paste"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const text = new FormData(e.currentTarget).get("email").trim();
+          if (text) read(text);
+        }}
+      >
+        <label>
+          Paste the bill email
+          <textarea
+            name="email"
+            rows={6}
+            autoFocus
+            placeholder="Paste the whole email, including the From and Subject lines if you can."
+          />
+        </label>
+        <div className="import-actions">
+          <button className="primary">
+            <Sparkles size={15} /> Read email
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setPasting(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    );
+  return (
+    <div className={`import-zone ${dragging ? "dragging" : ""}`}>
+      {inputs}
+      <ScanLine size={22} aria-hidden="true" className="import-icon" />
+      <div>
+        <strong>{dragging ? "Drop it here" : "Have the bill already?"}</strong>
+        <small>
+          Drop a photo, PDF or email and we’ll fill this in. Everything is read
+          on your device.
+        </small>
+        {state.status === "error" && (
+          <p className="error" role="alert">
+            {state.message}
+          </p>
+        )}
+        <div className="import-actions">
+          <button
+            type="button"
+            className="secondary"
+            autoFocus={autoFocus}
+            onClick={() => fileRef.current.click()}
+          >
+            <Upload size={15} /> Choose file
+          </button>
+          <button
+            type="button"
+            className="secondary touch-only"
+            onClick={() => cameraRef.current.click()}
+          >
+            <Camera size={15} /> Take photo
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setPasting(true)}
+          >
+            <ClipboardPaste size={15} /> Paste email
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** An import that resembles a tracked bill is usually a payment, not a new rule. */
+export function MatchBanner({
+  bill,
+  invoice,
+  draft,
+  busy,
+  onPaid,
+  onUpdate,
+  onDismiss,
+}) {
+  const changed = draft.amountCents && draft.amountCents !== bill.amountCents;
+  return (
+    <div className="match-banner" role="status">
+      <Repeat size={18} aria-hidden="true" />
+      <div>
+        <strong>
+          Looks like your “{bill.name}” ({money(bill.amountCents)}
+          {bill.repeat === "Once" ? "" : ` · ${bill.repeat.toLowerCase()}`})
+        </strong>
+        <small>
+          {invoice?.paid
+            ? `Already marked as paid for ${monthLabel(invoice.dueDate.slice(0, 7))}.`
+            : "Record the payment instead of adding a duplicate bill?"}
+        </small>
+        <div className="import-actions">
+          {invoice && !invoice.paid && (
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={onPaid}
+            >
+              <Check size={15} /> Mark {monthLabel(invoice.dueDate.slice(0, 7))}{" "}
+              as paid
+            </button>
+          )}
+          {changed && (
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={onUpdate}
+            >
+              Update amount to {money(draft.amountCents)}
+            </button>
+          )}
+          <button type="button" className="text-button" onClick={onDismiss}>
+            It’s a new bill
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

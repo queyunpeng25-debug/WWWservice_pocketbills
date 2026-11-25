@@ -45,8 +45,15 @@ const server = await createServer({
 });
 try {
   const { default: Auth } = await server.ssrLoadModule("/src/AuthScreen.jsx");
-  const { Calendar, InvoiceList, BillForm, GroupForm, SharedBillsSummary } =
-    await server.ssrLoadModule("/src/components.jsx");
+  const {
+    Calendar,
+    InvoiceList,
+    BillForm,
+    GroupForm,
+    SharedBillsSummary,
+    ImportPanel,
+    MatchBanner,
+  } = await server.ssrLoadModule("/src/components.jsx");
   const { Bills, Groups, Preferences, Help } =
     await server.ssrLoadModule("/src/views.jsx");
   const { sampleData, today } = await server.ssrLoadModule("/src/domain.js");
@@ -122,6 +129,32 @@ try {
       { groups: [], bills: [], invoices: [], onView: noop },
     ],
     ["entry", Auth, { onDemo: noop }],
+    ["import step", ImportPanel, { onResult: noop, onClear: noop }],
+    [
+      "imported bill form",
+      BillForm,
+      {
+        record: data.bills[1],
+        groups: [],
+        onSave: noop,
+        imported: {
+          confidence: { name: 0.9, amount: 0.5, date: 0.9 },
+          warnings: [{ field: "date", text: "No due date found." }],
+        },
+      },
+    ],
+    [
+      "match banner",
+      MatchBanner,
+      {
+        bill: data.bills[1],
+        invoice: data.invoices[1],
+        draft: { amountCents: 8240 },
+        onPaid: noop,
+        onUpdate: noop,
+        onDismiss: noop,
+      },
+    ],
     ["calendar", Calendar, { month, rows: data.invoices, onSelect: noop }],
     ["invoices", InvoiceList, { rows: data.invoices, onPay: noop }],
     [

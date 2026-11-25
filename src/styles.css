@@ -2001,3 +2001,224 @@ html[data-theme="dark"] .bill-icon {
     padding: 18px;
   }
 }
+
+/* Bill import: an optional first step inside "Add a new bill". */
+.side-scan {
+  margin-top: 9px;
+  justify-content: flex-start;
+  padding-left: 15px;
+}
+.button-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.import-zone,
+.import-summary,
+.match-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border-radius: 13px;
+  padding: 16px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+.import-zone {
+  border: 1.5px dashed #b9d59f;
+  background: var(--soft);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.import-zone.dragging {
+  border-color: #76a250;
+  background: var(--pale);
+}
+.import-zone.reading {
+  align-items: center;
+  border-style: solid;
+}
+.import-zone > div,
+.import-summary > div,
+.match-banner > div {
+  flex: 1;
+  min-width: 0;
+}
+.import-zone strong,
+.import-summary strong,
+.match-banner strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.import-zone small,
+.import-summary small,
+.match-banner small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+.import-icon {
+  color: #5f8b3c;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.import-actions .primary,
+.import-actions .secondary {
+  padding: 8px 13px;
+  font-size: 12px;
+}
+.import-zone .error {
+  margin: 10px 0 0;
+}
+.import-paste {
+  margin-bottom: 20px;
+}
+.import-paste label {
+  margin-top: 0;
+}
+.import-summary {
+  align-items: center;
+  background: var(--pale);
+}
+.import-thumb {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: #5f8b3c;
+}
+.import-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.match-banner {
+  background: #fdf6e3;
+  border: 1px solid #ecd9a6;
+  color: #5d4a1c;
+}
+.match-banner small {
+  color: #7c6835;
+}
+html[data-theme="dark"] .match-banner {
+  background: #3a3224;
+  border-color: #56472e;
+  color: #e0c9a3;
+}
+html[data-theme="dark"] .match-banner small {
+  color: #c6b28a;
+}
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.field-mark {
+  color: #5f8b3c;
+}
+.field-mark.check {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a6512;
+  background: #fbefc9;
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+.needs-check input,
+.needs-check select {
+  background: #fffaeb;
+  border-color: #e2c470;
+  box-shadow: inset 3px 0 0 #e2b13c;
+}
+html[data-theme="dark"] .needs-check input,
+html[data-theme="dark"] .needs-check select {
+  background: #332d1e;
+  border-color: #6b5a2c;
+}
+html[data-theme="dark"] .field-mark.check {
+  background: #4a3f22;
+  color: #f0d58f;
+}
+.field-note {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8a6512;
+}
+html[data-theme="dark"] .field-note {
+  color: #e0c48a;
+}
+.drop-overlay {
+  position: fixed;
+  inset: 14px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 2px dashed #76a250;
+  border-radius: 22px;
+  background: #edf4e6e6;
+  color: #173a07;
+  font-size: 18px;
+  font-weight: 650;
+  pointer-events: none;
+}
+html[data-theme="dark"] .drop-overlay {
+  background: #22291fe6;
+  color: #c3e7a6;
+}
+.spin {
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+  color: #5f8b3c;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* The camera shortcut only makes sense on touch devices. */
+@media (pointer: fine) {
+  .touch-only {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation-duration: 3s;
+  }
+}
+.file-input {
+  display: none;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.field-mark {
+  display: inline-flex;
+}
