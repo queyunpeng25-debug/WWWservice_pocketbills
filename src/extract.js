@@ -44,18 +44,22 @@ async function pdfText(file) {
   const { default: workerSrc } =
     await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
   pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() })
-    .promise;
-  const pages = [];
-  // Bills put the total and due date on the first pages.
-  for (let n = 1; n <= Math.min(doc.numPages, 3); n++) {
-    const content = await (await doc.getPage(n)).getTextContent();
-    pages.push(
-      content.items.map((i) => i.str + (i.hasEOL ? "\n" : " ")).join(""),
-    );
+  const task = pdfjs.getDocument({ data: await file.arrayBuffer() });
+  try {
+    const doc = await task.promise;
+    const pages = [];
+    // Bills put the total and due date on the first pages.
+    for (let n = 1; n <= Math.min(doc.numPages, 3); n++) {
+      const content = await (await doc.getPage(n)).getTextContent();
+      pages.push(
+        content.items.map((i) => i.str + (i.hasEOL ? "\n" : " ")).join(""),
+      );
+    }
+    return pages.join("\n");
+  } finally {
+    // pdf.js 6 tears documents down through the loading task.
+    await task.destroy();
   }
-  await doc.destroy();
-  return pages.join("\n");
 }
 
 /**

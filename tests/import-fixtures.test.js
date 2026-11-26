@@ -21,10 +21,14 @@ async function importText(name) {
 async function pdfText(name) {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const data = new Uint8Array(await fs.readFile(new URL(name, dir)));
-  const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
-  const content = await (await doc.getPage(1)).getTextContent();
-  await doc.destroy();
-  return content.items.map((i) => i.str + (i.hasEOL ? "\n" : " ")).join("");
+  const task = pdfjs.getDocument({ data, useSystemFonts: true });
+  try {
+    const doc = await task.promise;
+    const content = await (await doc.getPage(1)).getTextContent();
+    return content.items.map((i) => i.str + (i.hasEOL ? "\n" : " ")).join("");
+  } finally {
+    await task.destroy();
+  }
 }
 
 const cases = [
