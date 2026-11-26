@@ -10,6 +10,9 @@ import {
   shiftMonth,
   missingInvoices,
   editedInvoice,
+  automaticPaymentDue,
+  paymentMethodName,
+  isAutomaticPayment,
 } from "../src/domain.js";
 const bill = {
   id: "rent",
@@ -21,6 +24,76 @@ const bill = {
   groupId: "",
   archived: false,
 };
+test("automatic debit is due on its date and catches up missed payments", () => {
+  const automatic = { ...bill, paymentMethod: "My credit card", autoPay: true };
+  const invoice = occurrence(automatic, "2024-02");
+  assert.equal(automaticPaymentDue(invoice, "2024-02-28"), false);
+  assert.equal(automaticPaymentDue(invoice, "2024-02-29"), true);
+  assert.equal(automaticPaymentDue(invoice, "2024-03-01"), true);
+  assert.equal(
+    automaticPaymentDue({ ...invoice, paid: true }, "2024-03-01"),
+    false,
+  );
+  assert.equal(
+    automaticPaymentDue(occurrence(bill, "2024-02"), "2024-03-01"),
+    false,
+  );
+  assert.equal(
+    automaticPaymentDue({ paid: false, dueDate: "2024-02-29" }, "2024-03-01"),
+    false,
+  );
+  assert.equal(
+    automaticPaymentDue({ ...invoice, dueDate: "invalid" }, "2024-03-01"),
+    false,
+  );
+  const generated = missingInvoices([automatic], [], "2024-03", "2024-03");
+  assert.equal(
+    generated.filter((i) => automaticPaymentDue(i, "2024-03-01")).length,
+    2,
+  );
+});
+test("payment method validation and edits preserve paid history", () => {
+  for (const paymentMethod of [
+    "",
+    "Credit card",
+    "PayPal",
+    "Bank transfer",
+    "My own method",
+  ])
+    assert.doesNotThrow(() => validateBill({ ...bill, paymentMethod }));
+  assert.throws(() => validateBill({ ...bill, paymentMethod: "x".repeat(81) }));
+  const original = occurrence(bill, "2024-02");
+  const automatic = { ...bill, paymentMethod: "My credit card", autoPay: true };
+  assert.equal(
+    editedInvoice(automatic, original).paymentMethod,
+    "My credit card",
+  );
+  const paid = { ...original, paid: true };
+  assert.deepEqual(editedInvoice(automatic, paid), paid);
+});
+test("custom payment names do not enable automatic debit", () => {
+  for (const paymentMethod of ["", "PayPal", "Bank transfer", "automatic"]) {
+    const invoice = occurrence(
+      { ...bill, paymentMethod, autoPay: false },
+      "2024-02",
+    );
+    assert.equal(invoice.paymentMethod, paymentMethod);
+    assert.equal(automaticPaymentDue(invoice, "2024-03-01"), false);
+  }
+  assert.equal(occurrence(bill, "2024-02").paymentMethod, "");
+  assert.equal(occurrence(bill, "2024-02").autoPay, false);
+  assert.throws(() => validateBill({ ...bill, paymentMethod: 123 }));
+  assert.throws(() => validateBill({ ...bill, autoPay: "true" }));
+});
+test("legacy automatic debit records keep their behavior without a preset method", () => {
+  const legacy = { ...bill, paymentMethod: "automatic" };
+  assert.equal(isAutomaticPayment(legacy), true);
+  assert.equal(paymentMethodName(legacy), "");
+  const invoice = occurrence(legacy, "2024-02");
+  assert.equal(invoice.autoPay, true);
+  assert.equal(invoice.paymentMethod, "");
+  assert.equal(automaticPaymentDue(invoice, "2024-03-01"), true);
+});
 test("month-end recurrence does not drift after February", () => {
   assert.equal(occurrence(bill, "2024-02").dueDate, "2024-02-29");
   assert.equal(occurrence(bill, "2025-02").dueDate, "2025-02-28");

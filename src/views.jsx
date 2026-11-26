@@ -17,6 +17,8 @@ import {
   categories,
   sharedInvoices,
   settlement,
+  paymentMethodName,
+  isAutomaticPayment,
 } from "./domain";
 import { marks } from "./components";
 
@@ -112,10 +114,18 @@ export function Bills({
               )}
             </div>
             <h2>{b.name}</h2>
-            <p className="muted">
+            <p className="muted bill-category">
               {b.category}
               {b.groupId &&
                 ` · ${groups.find((g) => g.id === b.groupId)?.name || "Group"}`}
+            </p>
+            <p className="muted bill-payment-details">
+              {[
+                paymentMethodName(b).trim(),
+                isAutomaticPayment(b) ? "Automatic debit" : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
             <strong className="bill-amount">{money(b.amountCents)}</strong>
             <p className="muted">

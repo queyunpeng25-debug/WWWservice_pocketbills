@@ -33,6 +33,7 @@ import {
   ensureInvoice,
   setPayment,
   setPayer,
+  applyAutomaticPayment,
 } from "./store";
 import {
   today,
@@ -44,6 +45,7 @@ import {
   invoicesForMonth,
   missingInvoices,
   editedInvoice,
+  automaticPaymentDue,
 } from "./domain";
 import AuthScreen, { friendlyError } from "./AuthScreen";
 import {
@@ -87,6 +89,17 @@ export default function App() {
   const dataRef = useRef(data);
   dataRef.current = data;
   const pendingInvoices = useRef(new Set());
+  const pendingPayments = useRef(new Set());
+  const [clockTick, setClockTick] = useState(0);
+  useEffect(() => {
+    const refresh = () => setClockTick((tick) => tick + 1);
+    const timer = setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
   useEffect(() => {
     if (!configured) return;
     return onAuthStateChanged(auth, (u) => {
@@ -143,9 +156,11 @@ export default function App() {
     );
     if (!next.length) return;
     if (demo) {
-      const updated = { ...data, invoices: [...data.invoices, ...next] };
+      const current = dataRef.current;
+      const updated = { ...current, invoices: [...current.invoices, ...next] };
       try {
         saveDemo(updated);
+        dataRef.current = updated;
         setData(updated);
       } catch {
         setError("Browser storage is unavailable. Changes could not be saved.");
@@ -160,7 +175,44 @@ export default function App() {
         ),
       ).catch((err) => setError(friendlyError(err)));
     }
-  }, [loaded, month, data.bills, data.invoices, demo, user]);
+  }, [loaded, month, data.bills, data.invoices, demo, user, clockTick]);
+  useEffect(() => {
+    if (!loaded) return;
+    const due = data.invoices.filter(
+      (invoice) =>
+        automaticPaymentDue(invoice) &&
+        data.bills.some(
+          (bill) => bill.id === invoice.billId && !bill.archived,
+        ) &&
+        !pendingPayments.current.has(`${user?.uid}:${invoice.id}`),
+    );
+    if (!due.length) return;
+    if (demo) {
+      const ids = new Set(due.map((invoice) => invoice.id));
+      const current = dataRef.current;
+      const updated = {
+        ...current,
+        invoices: current.invoices.map((invoice) =>
+          ids.has(invoice.id) ? { ...invoice, paid: true } : invoice,
+        ),
+      };
+      try {
+        saveDemo(updated);
+        dataRef.current = updated;
+        setData(updated);
+      } catch {
+        setError("Browser storage is unavailable. Changes could not be saved.");
+      }
+    } else if (user) {
+      due.forEach((invoice) => {
+        const key = `${user.uid}:${invoice.id}`;
+        pendingPayments.current.add(key);
+        applyAutomaticPayment(user.uid, invoice.id)
+          .catch((err) => setError(friendlyError(err)))
+          .finally(() => pendingPayments.current.delete(key));
+      });
+    }
+  }, [loaded, data, demo, user, clockTick]);
   async function action(fn, success) {
     setError("");
     setBusy(true);

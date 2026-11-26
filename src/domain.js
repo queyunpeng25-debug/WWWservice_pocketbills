@@ -24,6 +24,19 @@ export function validDate(value) {
 }
 export const status = (invoice, day = today()) =>
   invoice.paid ? "Paid" : invoice.dueDate < day ? "Overdue" : "Upcoming";
+// Support records saved before payment method and automatic debit were separated.
+export const isAutomaticPayment = (record) =>
+  record.autoPay ?? record.paymentMethod === "automatic";
+export const paymentMethodName = (record) =>
+  record.autoPay === undefined &&
+  ["manual", "automatic"].includes(record.paymentMethod)
+    ? ""
+    : record.paymentMethod || "";
+export const automaticPaymentDue = (invoice, day = today()) =>
+  !invoice.paid &&
+  isAutomaticPayment(invoice) &&
+  validDate(invoice.dueDate) &&
+  invoice.dueDate <= day;
 export function daysUntil(value, day = today()) {
   return Math.round(
     (Date.parse(`${value}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) /
@@ -40,6 +53,13 @@ export const categories = [
 ];
 /** Integer cents avoid cumulative floating point errors in totals. */
 export function validateBill(bill) {
+  if (
+    bill.paymentMethod !== undefined &&
+    (typeof bill.paymentMethod !== "string" || bill.paymentMethod.length > 80)
+  )
+    throw new Error("Enter a payment method of up to 80 characters.");
+  if (bill.autoPay !== undefined && typeof bill.autoPay !== "boolean")
+    throw new Error("Choose whether automatic debit is enabled.");
   if (!bill.name?.trim() || bill.name.length > 80)
     throw new Error("Enter a bill name (1–80 characters).");
   if (
@@ -82,6 +102,8 @@ export function occurrence(bill, month) {
     category: bill.category,
     groupId: bill.groupId,
     paidBy: bill.paidBy || "",
+    paymentMethod: paymentMethodName(bill),
+    autoPay: isAutomaticPayment(bill),
     paid: false,
   };
 }

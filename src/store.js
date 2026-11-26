@@ -13,7 +13,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { sampleData, editedInvoice } from "./domain";
+import { sampleData, editedInvoice, automaticPaymentDue } from "./domain";
 import { collectionSnapshotHandler } from "./snapshots.js";
 const key = "pocketbill-demo-v2";
 export const emptyData = () => ({
@@ -129,6 +129,20 @@ export async function setPayment(uid, invoice, paid) {
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     tx.set(ref, { ...(snap.exists() ? snap.data() : invoice), paid });
+  });
+}
+
+/** Recheck the persisted method and date in case another device edited the bill. */
+export async function applyAutomaticPayment(uid, invoiceId) {
+  const ref = doc(db, "users", uid, "invoices", invoiceId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists() || !automaticPaymentDue(snap.data())) return;
+    const bill = await tx.get(
+      doc(db, "users", uid, "bills", snap.data().billId),
+    );
+    if (!bill.exists() || bill.data().archived) return;
+    tx.update(ref, { paid: true });
   });
 }
 

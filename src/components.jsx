@@ -34,6 +34,8 @@ import {
   validDate,
   sharedInvoices,
   settlement,
+  isAutomaticPayment,
+  paymentMethodName,
 } from "./domain";
 
 export const marks = {
@@ -181,6 +183,7 @@ export function InvoiceList({ rows, groups = [], onPay, busy }) {
       {rows.map((i) => {
         const group = groups.find((g) => g.id === i.groupId);
         const Icon = invoiceIcons[i.category] || Receipt;
+        const paymentMethod = paymentMethodName(i).trim();
         const count = group?.members.length || 0;
         const remainder = count ? i.amountCents % count : 0;
         const splitDescription = count
@@ -216,6 +219,11 @@ export function InvoiceList({ rows, groups = [], onPay, busy }) {
                       aria-hidden="true"
                     />
                     Personal
+                  </span>
+                )}
+                {paymentMethod && (
+                  <span className="invoice-group invoice-payment-method">
+                    {paymentMethod}
                   </span>
                 )}
               </div>
@@ -389,6 +397,8 @@ export function BillForm({
           amountCents: Math.round(Number(f.get("amount")) * 100),
           startDate: f.get("date"),
           repeat: f.get("repeat"),
+          paymentMethod: f.get("paymentMethod").trim(),
+          autoPay: f.has("autoPay"),
           category: f.get("category"),
           groupId: f.get("group"),
           paidBy: groupId ? f.get("paidBy") : "",
@@ -479,6 +489,29 @@ export function BillForm({
           {note(fCategory)}
         </label>
       </div>
+      <label>
+        Payment method (optional)
+        <input
+          type="text"
+          name="paymentMethod"
+          defaultValue={paymentMethodName(record)}
+          maxLength={80}
+        />
+      </label>
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          name="autoPay"
+          defaultChecked={isAutomaticPayment(record)}
+          aria-describedby="payment-method-note"
+        />
+        Automatic debit
+      </label>
+      <p className="form-note" id="payment-method-note">
+        Automatic debit is marked as paid on its due date while the app is open,
+        or when you next return. This records payment only; no money is
+        transferred.
+      </p>
       <label>
         Organise in a group
         <select
