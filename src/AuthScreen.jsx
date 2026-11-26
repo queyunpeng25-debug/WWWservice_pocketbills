@@ -68,43 +68,21 @@ export default function AuthScreen({ onDemo }) {
           <span className="brand-dot" />
         </a>
         <div>
-          <span className="eyebrow">LESS MENTAL MATH. MORE LIVING.</span>
           <h1>
-            A little clarity.
-            <br />A lot less
+            Bills and subscriptions,
             <br />
-            <em>bill stress.</em>
+            <em>in one place.</em>
           </h1>
-          <p>
-            Rent, subscriptions, and all the little things.
-            <br />
-            One calm place to keep track of what’s next.
-          </p>
-          <div className="auth-stickers">
-            <span>
-              ✓<small>Paid. And peaceful.</small>
-            </span>
-            <span>
-              ↗<small>You’ve got this.</small>
-            </span>
-          </div>
         </div>
-        <small>Made for everyday life. Designed to keep things simple.</small>
       </section>
       <section className="auth-form">
-        <span className="eyebrow">WELCOME TO POCKETBILL</span>
         <h2>
           {mode === "signup"
-            ? "Make room for peace of mind."
+            ? "Create account"
             : mode === "reset"
-              ? "Let’s get you back in."
-              : "Good to see you."}
+              ? "Reset password"
+              : "Sign in"}
         </h2>
-        <p className="muted">
-          {mode === "signup"
-            ? "Create your private bill workspace."
-            : "Your bills, a little more organised."}
-        </p>
         {configured ? (
           <>
             <form onSubmit={submit}>
@@ -184,7 +162,7 @@ export default function AuthScreen({ onDemo }) {
           </p>
         )}
         {notice && <p role="status">{notice}</p>}
-        <div className="divider">OR TAKE A LOOK AROUND</div>
+        <div className="divider">OR</div>
         <button className="secondary full" onClick={onDemo}>
           Explore demo workspace <ArrowUpRight size={17} />
         </button>

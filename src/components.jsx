@@ -155,7 +155,6 @@ export function Modal({ title, children, onClose }) {
     >
       <div className="dialog-head">
         <div>
-          <span className="eyebrow">YOUR WORKSPACE</span>
           <h2>{title}</h2>
         </div>
         <button
@@ -272,8 +271,7 @@ export function InvoiceList({ rows, groups = [], onPay, busy }) {
   ) : (
     <div className="empty">
       <Check />
-      <h3>A little breathing room.</h3>
-      <p>No payments to show for this selection.</p>
+      <h3>No payments for this selection.</h3>
     </div>
   );
 }

@@ -365,7 +365,7 @@ export function Groups({
           <h2>
             {filter === "Archived"
               ? "No archived groups yet."
-              : "A place for shared costs."}
+              : "No groups yet."}
           </h2>
           <p>
             {filter === "Archived"
@@ -410,7 +410,7 @@ export function Preferences({ settings, demo, user, busy, onSave, onLeave }) {
           />
         </label>
         <div className="settings-divider" />
-        <h2>Stay a step ahead</h2>
+        <h2>Reminders</h2>
         <label className="checkbox-label">
           <input
             key={String(settings.reminders)}
@@ -469,13 +469,6 @@ export function Preferences({ settings, demo, user, busy, onSave, onLeave }) {
 export function Help() {
   return (
     <section className="panel help-panel">
-      <span className="eyebrow">A LITTLE LESS TO KEEP IN YOUR HEAD</span>
-      <h2>Life has enough moving parts.</h2>
-      <p>
-        PocketBill brings recurring subscriptions and one-time bills into one
-        private workspace. See what you owe, when it’s due, and what’s already
-        taken care of — without a spreadsheet or a banking connection.
-      </p>
       {[
         [
           "How do recurring bills work?",

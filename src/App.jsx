@@ -454,18 +454,6 @@ export default function App() {
           Scan a bill
         </button>
         <div className="side-bottom">
-          <div className="little-note">
-            <span>✳</span>
-            <strong>
-              A little organised.
-              <br />A lot more at ease.
-            </strong>
-            <p>
-              Your next payment doesn’t
-              <br />
-              have to be a surprise.
-            </p>
-          </div>
           {["settings", "help"].map((key) => {
             const [label, Icon] = pages[key];
             return (
@@ -531,29 +519,7 @@ export default function App() {
         <main id="main">
           <div className="page-heading">
             <div>
-              <span className="eyebrow">
-                {page === "home"
-                  ? "A LITTLE CLARITY FOR YOUR EVERYDAY"
-                  : "EVERYTHING IN ITS PLACE"}
-              </span>
-              <h1>
-                {page === "home"
-                  ? `Let’s keep life in balance, ${name}.`
-                  : pages[page][0]}
-              </h1>
-              <p>
-                {
-                  {
-                    home: "A clear view of your bills. A little more peace of mind.",
-                    bills:
-                      "All your bills and subscriptions, neatly in one place.",
-                    calendar: "See what’s coming. Make room for what matters.",
-                    groups: "Manage groups, shared expenses, and balances.",
-                    settings: "Make PocketBill feel a little more like you.",
-                    help: "Simple answers for a calmer financial routine.",
-                  }[page]
-                }
-              </p>
+              <h1>{page === "home" ? `Hi, ${name}` : pages[page][0]}</h1>
             </div>
             <div className="heading-actions">
               {["home", "calendar"].includes(page) && monthControl}
@@ -651,10 +617,10 @@ export default function App() {
                     <div className="status-zone">
                       <div className="status-cards">
                         {[
-                          ["Overdue", "☹", "Needs a little attention"],
-                          ["Upcoming", "◔", "Coming up next"],
-                          ["Paid", "☺", "All taken care of"],
-                        ].map(([s, face, label]) => (
+                          ["Overdue", "☹"],
+                          ["Upcoming", "◔"],
+                          ["Paid", "☺"],
+                        ].map(([s, face]) => (
                           <button
                             key={s}
                             className={`status-card ${s.toLowerCase()} ${filter === s ? "selected" : ""}`}
@@ -666,25 +632,20 @@ export default function App() {
                             </span>
                             <span className="face">{face}</span>
                             <strong>{s}</strong>
-                            <small>{label}</small>
                           </button>
                         ))}
                       </div>
-                      <p className="status-note">
-                        A small check-in today. A lighter mind tomorrow.
-                      </p>
                     </div>
                   </div>
                   {data.settings.reminders && reminders.length > 0 && (
                     <div className="alert">
                       <Bell size={17} />
                       <span>
-                        <strong>A friendly heads-up.</strong> {reminders.length}{" "}
-                        payments overdue or due within{" "}
+                        {reminders.length} payments overdue or due within{" "}
                         {data.settings.reminderDays} days.
                       </span>
                       <button onClick={() => setModal({ type: "reminders" })}>
-                        Take a look →
+                        View
                       </button>
                     </div>
                   )}
@@ -693,11 +654,9 @@ export default function App() {
                       <div className="panel-header">
                         <div>
                           <h2>Your payments</h2>
-                          <small>
-                            {filter === "All"
-                              ? "One payment at a time. You’ve got this."
-                              : `${filter} payments this month`}
-                          </small>
+                          {filter !== "All" && (
+                            <small>{filter} payments this month</small>
+                          )}
                         </div>
                         <button
                           className="text-button"
@@ -907,7 +866,6 @@ export default function App() {
         </main>
         <footer>
           <span>Pocket Bill</span>
-          <span>A little organised. A lot more at ease.</span>
           <button onClick={() => navigate("help")}>Help & about ↗</button>
         </footer>
       </div>
@@ -1060,7 +1018,7 @@ export default function App() {
         </Modal>
       )}
       {modal?.type === "reminders" && (
-        <Modal title="A friendly heads-up" onClose={() => setModal(null)}>
+        <Modal title="Reminders" onClose={() => setModal(null)}>
           <p className="muted">
             Unpaid invoices overdue or due within {data.settings.reminderDays}{" "}
             days.
